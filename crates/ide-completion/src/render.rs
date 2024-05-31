@@ -140,8 +140,9 @@ pub(crate) fn render_field(
         field_with_receiver(db, receiver.as_ref(), &name),
     );
     item.set_relevance(CompletionRelevance {
-        type_match: compute_type_match(ctx.completion, ty),
         exact_name_match: compute_exact_name_match(ctx.completion, name.as_str()),
+        type_match: compute_type_match(ctx.completion, ty),
+        is_field: true,
         ..CompletionRelevance::default()
     });
     item.detail(ty.display(db).to_string())
@@ -212,11 +213,17 @@ pub(crate) fn render_tuple_field(
     field: usize,
     ty: &hir::Type,
 ) -> CompletionItem {
+    let relevance = CompletionRelevance {
+        // tuple fields are still fields
+        is_field: true,
+        ..Default::default()
+    };
     let mut item = CompletionItem::new(
         SymbolKind::Field,
         ctx.source_range(),
         field_with_receiver(ctx.db(), receiver.as_ref(), &field.to_string()),
     );
+    item.set_relevance(relevance);
     item.detail(ty.display(ctx.db()).to_string()).lookup_by(field.to_string());
     item.build(ctx.db())
 }

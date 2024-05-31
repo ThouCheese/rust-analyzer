@@ -154,6 +154,14 @@ pub struct CompletionRelevance {
     pub is_item_from_trait: bool,
     /// This is set for when trait items are from traits with `#[doc(notable_trait)]`
     pub is_item_from_notable_trait: bool,
+    /// This is true when the trait that contains this item is not implemented for the current type
+    /// specifically, but it follows from a blanket trait impl.
+    pub is_item_from_blanket_trait: bool,
+    /// This is true when a completion is the name of a field of a struct or tuple.
+    pub is_field: bool,
+    /// This is true when a completion is the name of an inherent item, i.e. an associated const or
+    /// a method that is not defined via a trait.
+    pub is_inherent_item: bool,
     /// This is set when an import is suggested whose name is already imported.
     pub is_name_already_imported: bool,
     /// This is set for completions that will insert a `use` item.
@@ -244,13 +252,16 @@ impl CompletionRelevance {
             type_match,
             is_local,
             is_item_from_trait,
+            is_item_from_notable_trait,
+            is_item_from_blanket_trait,
+            is_field,
+            is_inherent_item,
             is_name_already_imported,
             requires_import,
             is_op_method,
             is_private_editable,
             postfix_match,
             is_definite,
-            is_item_from_notable_trait,
             function,
         } = self;
 
@@ -297,6 +308,14 @@ impl CompletionRelevance {
             score += 10;
         }
 
+        score += Self::dot_completion_score(
+            is_field,
+            is_inherent_item,
+            is_item_from_trait,
+            is_item_from_notable_trait,
+            is_item_from_blanket_trait,
+        );
+
         score += function
             .map(|asf| {
                 let mut fn_score = match asf.return_type {
@@ -324,6 +343,28 @@ impl CompletionRelevance {
             .unwrap_or_default();
 
         score
+    }
+
+    fn dot_completion_score(
+        is_field: bool,
+        is_inherent_item: bool,
+        is_item_from_trait: bool,
+        is_item_from_notable_trait: bool,
+        is_item_from_blanket_trait: bool,
+    ) -> u32 {
+        if is_field {
+            5
+        } else if is_item_from_blanket_trait {
+            1
+        } else if is_item_from_notable_trait {
+            3
+        } else if is_item_from_trait {
+            2
+        } else if is_inherent_item {
+            4
+        } else {
+            0
+        }
     }
 
     /// Returns true when the score for this threshold is above
